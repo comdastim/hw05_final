@@ -29,10 +29,10 @@ class CacheViewsTests(TestCase):
         response = self.user_client.get(reverse('posts:index_posts'))
         before_deletion = response.content
         self.post.delete()
-        response_2 = self.user_client.get(reverse('posts:index_posts'))
-        after_deletion = response_2.content
+        second_response = self.user_client.get(reverse('posts:index_posts'))
+        after_deletion = second_response.content
         self.assertEqual(before_deletion, after_deletion)
         cache.clear()
-        response_3 = self.user_client.get(reverse('posts:index_posts'))
-        after_cache = response_3.content
+        third_response = self.user_client.get(reverse('posts:index_posts'))
+        after_cache = third_response.content
         self.assertNotEqual(before_deletion, after_cache)

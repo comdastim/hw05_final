@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+from http import HTTPStatus
 
 from django import forms
 from django.conf import settings
@@ -217,7 +218,7 @@ class ErrorViewsTests(TestCase):
 
     def test_error_page(self):
         response = self.guest_client.get('nonexist-page')
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
         self.assertTemplateUsed(response, 'core/404.html')
 
 
@@ -227,8 +228,8 @@ class FollowViewsTests(TestCase):
         super().setUpClass()
         cls.author = User.objects.create_user(username='Автор')
         cls.user = User.objects.create_user(username='Подписан на автора')
-        cls.user_2 = User.objects.create_user(username='Не подписан на автора')
-        cls.user_3 = User.objects.create_user(username='Будущий подписчик')
+        cls.second_user = User.objects.create_user(username='Не подписан')
+        cls.third_user = User.objects.create_user(username='Будущий подписчик')
         cls.follow = Follow.objects.create(
             author=cls.author,
             user=cls.user
@@ -250,8 +251,8 @@ class FollowViewsTests(TestCase):
         self.future_follower = Client()
         self.author_client.force_login(self.author)
         self.follower.force_login(self.user)
-        self.not_follower.force_login(self.user_2)
-        self.future_follower.force_login(self.user_3)
+        self.not_follower.force_login(self.second_user)
+        self.future_follower.force_login(self.third_user)
 
     def test_create_follow(self):
         """Проверяем, может ли подписаться авторизованный пользователь,
@@ -267,7 +268,7 @@ class FollowViewsTests(TestCase):
         self.assertEqual(Follow.objects.count(), follow_count + 1)
         self.assertTrue(
             Follow.objects.filter(
-                user=self.user_2,
+                user=self.second_user,
                 author=self.author
             ).exists()
         )
@@ -295,11 +296,11 @@ class FollowViewsTests(TestCase):
         Проверяем, что после подписки новый follower видит появляющиеся
         посты автора.
         """
-        self.follow_2 = Follow.objects.create(
+        self.second_follow = Follow.objects.create(
             author=self.author,
-            user=self.user_3
+            user=self.third_user
         )
-        self.post_2 = Post.objects.create(
+        self.second_post = Post.objects.create(
             author=self.author,
             group=self.group,
             text='Второй текст от автора',
@@ -309,14 +310,14 @@ class FollowViewsTests(TestCase):
         author_posts_count = len(author_posts)
         self.assertEqual(len(response.context['page_obj']), author_posts_count)
         first_object = response.context.get('page_obj')[0]
-        self.assertEqual(first_object.text, self.post_2.text)
+        self.assertEqual(first_object.text, self.second_post.text)
 
     def test_not_follower_cant_author_posts(self):
         """
         Проверяем, что пользователь, не являющийся подписчиком,
         не видит посты автора.
         """
-        self.post_2 = Post.objects.create(
+        self.second_post = Post.objects.create(
             author=self.author,
             group=self.group,
             text='Второй текст от автора',
