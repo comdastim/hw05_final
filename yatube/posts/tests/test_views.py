@@ -210,6 +210,7 @@ class PaginatorViewsTest(TestCase):
                 response = self.guest_client.get(url + '?page=2')
                 self.assertEqual(len(response.context['page_obj']), 3)
 
+
 class ErrorViewsTests(TestCase):
     def setUp(self):
         self.guest_client = Client()
@@ -217,7 +218,7 @@ class ErrorViewsTests(TestCase):
     def test_error_page(self):
         response = self.guest_client.get('nonexist-page')
         self.assertEqual(response.status_code, 404)
-        self.assertTemplateUsed(response, 'core/404.html')               
+        self.assertTemplateUsed(response, 'core/404.html')
 
 
 class FollowViewsTests(TestCase):
