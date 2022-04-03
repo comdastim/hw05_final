@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% load cache %}
+{% block title %}
+  {{ index_text }}
+{% endblock %}
+  {% block content %}
+    {%cache 20 sidebar%}
+      {% include 'posts/includes/switcher.html' %}
+      {% for post in page_obj %}
+        {% include 'posts/includes/profile_all_posts.html' %}
+        {% include 'posts/includes/post_info.html' %}
+      {% endfor %} 
+    {% endcache%}
+    
+  {% include 'posts/includes/paginator.html' %}
+{% endblock %}
