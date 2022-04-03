@@ -226,16 +226,12 @@ class FollowViewsTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.author = User.objects.create_user(username='Автор')
-        cls.user = User.objects.create_user(username='Подписчик_на_автора')
-        cls.author_2 = User.objects.create_user(username='Автор_2')
-        cls.user_2 = User.objects.create_user(username='Подписчик_на_автора_2')
+        cls.user = User.objects.create_user(username='Подписан на автора')
+        cls.user_2 = User.objects.create_user(username='Не подписан на автора')
+        cls.user_3 = User.objects.create_user(username='Будущий подписчик')
         cls.follow = Follow.objects.create(
             author=cls.author,
             user=cls.user
-        )
-        cls.follow_2 = Follow.objects.create(
-            author=cls.author_2,
-            user=cls.user_2
         )
         cls.group = Group.objects.create(
             title='Тестовый заголовок',
@@ -246,26 +242,16 @@ class FollowViewsTests(TestCase):
             group=cls.group,
             text='Тестовый текст от автора',
         )
-        cls.post_2 = Post.objects.create(
-            author=cls.author,
-            group=cls.group,
-            text='Еще один текст от автора',
-        )
-        cls.another_post = Post.objects.create(
-            author=cls.author_2,
-            group=cls.group,
-            text='Текст поста автора_2',
-        )
 
     def setUp(self):
-        self.authorized_author_client = Client()
-        self.authorized_author_client_2 = Client()
+        self.author_client = Client()
         self.follower = Client()
         self.not_follower = Client()
-        self.authorized_author_client.force_login(self.author)
+        self.future_follower = Client()
+        self.author_client.force_login(self.author)
         self.follower.force_login(self.user)
         self.not_follower.force_login(self.user_2)
-        self.authorized_author_client_2.force_login(self.author_2)
+        self.future_follower.force_login(self.user_3)
 
     def test_create_follow(self):
         """Проверяем, может ли подписаться авторизованный пользователь,
@@ -305,18 +291,38 @@ class FollowViewsTests(TestCase):
         )
 
     def test_follower_see_author_posts(self):
-        """Проверяем, отображаются ли посты автора у подписчика."""
-        response = self.follower.get(reverse('posts:follow_index'))
-        first_object = response.context['page_obj'][0]
-        second_object = response.context['page_obj'][1]
-        self.assertEqual(first_object.text, self.post.text)
-        self.assertEqual(second_object.text, self.post_2.text)
+        """
+        Проверяем, что после подписки новый follower видит появляющиеся
+        посты автора.
+        """
+        self.follow_2 = Follow.objects.create(
+            author=self.author,
+            user=self.user_3
+        )
+        self.post_2 = Post.objects.create(
+            author=self.author,
+            group=self.group,
+            text='Второй текст от автора',
+        )
+        response = self.future_follower.get(reverse('posts:follow_index'))
+        author_posts = Post.objects.filter(author=self.author)
+        author_posts_count = len(author_posts)
+        self.assertEqual(len(response.context['page_obj']), author_posts_count)
+        first_object = response.context.get('page_obj')[0]
+        self.assertEqual(first_object.text, self.post_2.text)
 
-    def test_not_follower_see_author_posts(self):
-        """Проверяем, что у подписчика автора_2, не подписанного на автора,
-         отображается у пост автора_2 и не отображаются посты автора.
-         """
+    def test_not_follower_cant_author_posts(self):
+        """
+        Проверяем, что пользователь, не являющийся подписчиком,
+        не видит посты автора.
+        """
+        self.post_2 = Post.objects.create(
+            author=self.author,
+            group=self.group,
+            text='Второй текст от автора',
+        )
         response = self.not_follower.get(reverse('posts:follow_index'))
-        first_object = response.context['page_obj'][0]
-        self.assertNotEqual(first_object.text, self.post.text)
-        self.assertEqual(first_object.text, self.another_post.text)
+        author_posts = Post.objects.filter(author=self.author)
+        author_posts_count = len(author_posts)
+        self.assertNotEqual(len(
+            response.context['page_obj']), author_posts_count)
